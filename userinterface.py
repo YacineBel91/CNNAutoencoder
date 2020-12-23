@@ -1,14 +1,17 @@
 from PyQt5 import QtWidgets as qt
 import sys
 
-import mainwindow
+from mainwindow import Ui_MainWindow
 
-class Window(qt.QMainWindow,mainwindow.Ui_MainWindow):
+class Window(qt.QMainWindow,Ui_MainWindow):
 
     def __init__(self,parent=None):
         super(Window,self).__init__(parent)
-        self.newAutoEncoderSaveButton.clicked.connect(lambda : qt.QFileDialog.getSaveFileName(self,"Veuilez"))
         self.setupUi(self)
+
+        self.newAutoEncoderSaveButton.clicked.connect(lambda: qt.QFileDialog.getSaveFileName(self, "Veuilez"))
+        self.addImagesButton.clicked.connect(self.openImages)
+        self.newAutoEncoderSaveButton.clicked.connect(self.saveAE)
 
     def openImages(self):
         filePaths,_=qt.QFileDialog.getOpenFileNames(self,caption="Veuillez choisir une ou plusieurs images")
