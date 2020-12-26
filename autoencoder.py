@@ -56,47 +56,78 @@ class AutoEncoder(nn.Module):
 
     def __init__(self, **kwargs):
         super().__init__()
-        self.encoder = nn.Sequential(
-            nn.Conv2d(3, 21, 3, stride=3, padding=1, groups=3),  # b, 16, 10, 10
-            nn.ReLU(True),
-            nn.MaxPool2d(2, stride=2),  # b, 16, 5, 5
-            nn.Conv2d(21, 3, 3, stride=2, padding=1, groups=3),  # b, 8, 3, 3
-            nn.ReLU(True),
-            nn.MaxPool2d(2, stride=1)  # b, 8, 2, 2
-        )
-        self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(3, 21, 3, stride=2),  # b, 16, 5, 5
-            nn.ReLU(True),
-            nn.ConvTranspose2d(21, 7, 5, stride=3, padding=1),  # b, 8, 15, 15
-            nn.ReLU(True),
-            nn.ConvTranspose2d(7, 3, 2, stride=2, padding=1),  # b, 1, 28, 28
-            nn.Tanh()
-        )
-        # self.encoder = nn.Sequential(
-        #     nn.Conv2d(3, 16, 3, stride=3, padding=1),  # Stride was 3
-        #     nn.ReLU(True),
-        #     nn.MaxPool2d(2, stride=2),  # Stride was 2
-        #     nn.Conv2d(16, 8, 3, stride=2, padding=1),  # Stride was 2
-        #     nn.ReLU(True),
-        #     nn.MaxPool2d(2, stride=1)  # Stride was 1
-        # )
-        # self.decoder = nn.Sequential(
-        #     nn.ConvTranspose2d(8, 16, 3, stride=2),  # Stride was 2
-        #     nn.ReLU(True),
-        #     nn.ConvTranspose2d(16, 8, 5, stride=3, padding=1),  # b, 8, 15, 15
-        #     nn.ReLU(True),
-        #     nn.ConvTranspose2d(8, 3, 2, stride=2, padding=1),  # b, 1, 28, 28
-        #     nn.Tanh()
-        # )
+        self.conv1 = nn.Sequential(nn.Conv2d(3,32,(3,3)),
+                                   nn.LeakyReLU(0.2),
+                                   nn.Conv2d(32,32,(3,3)),
+                                   nn.LeakyReLU(0.2))
+        self.pool1 = nn.MaxPool2d((2,2))
+
+        self.conv2 = nn.Sequential(nn.Conv2d(32,64,(3,3)),
+                                   nn.LeakyReLU(0.2),
+                                   nn.Conv2d(64,64,(3,3)),
+                                   nn.LeakyReLU(0.2))
+
+        self.pool2 = nn.MaxPool2d((2,2))
+
+        self.conv3 = nn.Sequential(nn.Conv2d(64, 128, (3, 3)),
+                                   nn.LeakyReLU(0.2),
+                                   nn.Conv2d(128, 128, (3, 3)),
+                                   nn.LeakyReLU(0.2))
+
+        self.pool3 = nn.MaxPool2d((2,2))
+
+        self.conv4 = nn.Sequential(nn.Conv2d(128, 256, (3, 3)),
+                                   nn.LeakyReLU(0.2),
+                                   nn.Conv2d(256, 256, (3, 3)),
+                                   nn.LeakyReLU(0.2))
+
+        self.pool4 = nn.MaxPool2d((2,2))
+
+        self.conv5 = nn.Sequential(nn.Conv2d(256, 512, (3, 3)),
+                                   nn.LeakyReLU(0.2),
+                                   nn.Conv2d(512, 512, (3, 3)),
+                                   nn.LeakyReLU(0.2))
+
+        self.conv6 = nn.Sequential(nn.Conv2d(512,256,(3,3),),
+                                   nn.LeakyReLU(0.2),
+                                   nn.Conv2d(256,256,(3,3)),
+                                   nn.LeakyReLU(0.2))
+
+        self.conv7 = nn.Sequential(nn.Conv2d(256,128,(3,3)),
+                                   nn.LeakyReLU(0.2),
+                                   nn.Conv2d(128,128,(3,3)),
+                                   nn.LeakyReLU(0.2))
+
+        self.conv8 = nn.Sequential(nn.Conv2d(128,64,(3,3)),
+                                   nn.LeakyReLU(0.2),
+                                   nn.Conv2d(64,64,(3,3)),
+                                   nn.LeakyReLU(0.2))
+
+        self.conv9 = nn.Sequential(nn.Conv2d(64,32,(3,3)),
+                                   nn.LeakyReLU(0.2),
+                                   nn.Conv2d(32,32,(3,3)),
+                                   nn.LeakyReLU(0.2))
+
+        self.conv10 = nn.Conv2d(32,12,(1,1))
+
 
     def forward(self, x):
-        return self.decoder(self.encoder(x))
+        conv1 = self.conv1(x)
+        pool1 = self.pool1(conv1)
+        conv2 = self.conv2(pool1)
+        pool2 = self.pool2(conv2)
+        conv3 = self.conv3(pool2)
+        pool3 = self.pool3(conv3)
+        conv4 = self.conv4(pool3)
+        pool4 = self.pool4(conv4)
+        conv5 = self.conv5(pool4)
+        up6 = self.upsampleAndConcat(conv5,conv4,256,512)
 
-    def encode(self, x):
-        return self.encoder(x)
 
-    def decode(self, x):
-        return self.decoder(x)
+    def upsampleAndConcat(self,x1,x2,output_channels,input_channels):
+        poolsize=2
+        deconv = nn.ConvTranspose2d(input_channels,output_channels,(poolsize,poolsize))
+
 
 def createAndTrainModel(**kwargs):
     """
@@ -107,7 +138,7 @@ def createAndTrainModel(**kwargs):
     :param num_epochs: The number of epochs (defaults to 50)
     :param criterion: The Loss function (defaults to MSELoss)
     :param logFileName: (very optional) Path to a file where to store the history of the training
-    :return: 
+    :return: a fully trained model AND the latest loss computed
     """
 
     if "dataset" in kwargs:
@@ -186,3 +217,4 @@ def createAndTrainModel(**kwargs):
         f.close()
 
     return model,loss # Return the trained model, and the latest training loss it yielded
+
