@@ -56,59 +56,67 @@ class AutoEncoder(nn.Module):
 
     def __init__(self, **kwargs):
         super().__init__()
-        self.conv1 = nn.Sequential(nn.Conv2d(3,32,(3,3)),
+        self.conv1 = nn.Sequential(nn.Conv2d(4,32,(3,3), stride=1, padding=1),
                                    nn.LeakyReLU(0.2),
-                                   nn.Conv2d(32,32,(3,3)),
+                                   nn.Conv2d(32,32,(3,3), stride=1, padding=1),
                                    nn.LeakyReLU(0.2))
         self.pool1 = nn.MaxPool2d((2,2))
 
-        self.conv2 = nn.Sequential(nn.Conv2d(32,64,(3,3)),
+        self.conv2 = nn.Sequential(nn.Conv2d(32,64,(3,3), stride=1, padding=1),
                                    nn.LeakyReLU(0.2),
-                                   nn.Conv2d(64,64,(3,3)),
+                                   nn.Conv2d(64,64,(3,3), stride=1, padding=1),
                                    nn.LeakyReLU(0.2))
 
         self.pool2 = nn.MaxPool2d((2,2))
 
-        self.conv3 = nn.Sequential(nn.Conv2d(64, 128, (3, 3)),
+        self.conv3 = nn.Sequential(nn.Conv2d(64, 128, (3, 3), stride=1, padding=1),
                                    nn.LeakyReLU(0.2),
-                                   nn.Conv2d(128, 128, (3, 3)),
+                                   nn.Conv2d(128, 128, (3, 3), stride=1, padding=1),
                                    nn.LeakyReLU(0.2))
 
         self.pool3 = nn.MaxPool2d((2,2))
 
-        self.conv4 = nn.Sequential(nn.Conv2d(128, 256, (3, 3)),
+        self.conv4 = nn.Sequential(nn.Conv2d(128, 256, (3, 3), stride=1, padding=1),
                                    nn.LeakyReLU(0.2),
-                                   nn.Conv2d(256, 256, (3, 3)),
+                                   nn.Conv2d(256, 256, (3, 3), stride=1, padding=1),
                                    nn.LeakyReLU(0.2))
 
         self.pool4 = nn.MaxPool2d((2,2))
 
-        self.conv5 = nn.Sequential(nn.Conv2d(256, 512, (3, 3)),
+        self.conv5 = nn.Sequential(nn.Conv2d(256, 512, (3, 3), stride=1, padding=1),
                                    nn.LeakyReLU(0.2),
-                                   nn.Conv2d(512, 512, (3, 3)),
+                                   nn.Conv2d(512, 512, (3, 3), stride=1, padding=1),
                                    nn.LeakyReLU(0.2))
 
-        self.conv6 = nn.Sequential(nn.Conv2d(512,256,(3,3),),
+        self.up6 = nn.ConvTranspose2d(512,256,(2,2),stride=2)
+
+        self.conv6 = nn.Sequential(nn.Conv2d(512,256,(3,3), stride=1, padding=1),
                                    nn.LeakyReLU(0.2),
                                    nn.Conv2d(256,256,(3,3)),
                                    nn.LeakyReLU(0.2))
 
-        self.conv7 = nn.Sequential(nn.Conv2d(256,128,(3,3)),
+        self.up7 = nn.ConvTranspose2d(256,128,(2,2),stride=2)
+
+        self.conv7 = nn.Sequential(nn.Conv2d(256,128,(3,3), stride=1, padding=1),
                                    nn.LeakyReLU(0.2),
                                    nn.Conv2d(128,128,(3,3)),
                                    nn.LeakyReLU(0.2))
 
-        self.conv8 = nn.Sequential(nn.Conv2d(128,64,(3,3)),
+        self.up8 = nn.ConvTranspose2d(128,64,(2,2),stride=2)
+
+        self.conv8 = nn.Sequential(nn.Conv2d(128,64,(3,3), stride=1, padding=1),
                                    nn.LeakyReLU(0.2),
-                                   nn.Conv2d(64,64,(3,3)),
+                                   nn.Conv2d(64,64,(3,3), stride=1, padding=1),
                                    nn.LeakyReLU(0.2))
 
-        self.conv9 = nn.Sequential(nn.Conv2d(64,32,(3,3)),
+        self.up9 = nn.ConvTranspose2d(64,32,(2,2),stride=2)
+
+        self.conv9 = nn.Sequential(nn.Conv2d(64,32,(3,3), stride=1, padding=1),
                                    nn.LeakyReLU(0.2),
-                                   nn.Conv2d(32,32,(3,3)),
+                                   nn.Conv2d(32,32,(3,3), stride=1, padding=1),
                                    nn.LeakyReLU(0.2))
 
-        self.conv10 = nn.Conv2d(32,12,(1,1))
+        self.conv10 = nn.Conv2d(32,12,(1,1),stride=1)
 
 
     def forward(self, x):
@@ -121,12 +129,19 @@ class AutoEncoder(nn.Module):
         conv4 = self.conv4(pool3)
         pool4 = self.pool4(conv4)
         conv5 = self.conv5(pool4)
-        up6 = self.upsampleAndConcat(conv5,conv4,256,512)
-
-
-    def upsampleAndConcat(self,x1,x2,output_channels,input_channels):
-        poolsize=2
-        deconv = nn.ConvTranspose2d(input_channels,output_channels,(poolsize,poolsize))
+        up6 = self.up6(conv5)
+        up6 = torch.cat([up6, conv4], 1)
+        conv6 = self.conv6(up6)
+        up7 = self.up7(conv6)
+        up7 = torch.cat([up7, conv3], 1)
+        conv7 = self.conv7(up7)
+        up8 = self.up8(conv7)
+        up8 = torch.cat([up8, conv2], 1)
+        conv8 = self.conv8(up8)
+        up9 = self.up9(conv8)
+        up9 = torch.cat([up9, conv1], 1)
+        conv10 = self.conv10(up9)
+        return nn.functional.pixel_shuffle(conv10, 2)
 
 
 def createAndTrainModel(**kwargs):
@@ -218,3 +233,11 @@ def createAndTrainModel(**kwargs):
 
     return model,loss # Return the trained model, and the latest training loss it yielded
 
+def testModel():
+    model = AutoEncoder().to(device)
+    testTensor = torch.randn(1,4,400,600).to(device) # Change la forme du tensor en modifiant les deux derniers paramètres (hauteur et largeur)
+    return model(testTensor) # Le but: que cette ligne ne renvoie pas une erreur
+
+if __name__=="__main__":
+    resultTensor = testModel()
+    print(resultTensor.shape) # Les deux dernières dimensions de ce tensor devraient être exactement le double de celles de testTensor
