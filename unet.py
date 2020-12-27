@@ -52,7 +52,7 @@ class AutoEncoderLocalFileDataset(Dataset):
         return torchvision.transforms.ToTensor()(img)
 
 
-class AutoEncoder(nn.Module):
+class UNet(nn.Module):
 
     def __init__(self, **kwargs):
         super().__init__()
@@ -88,28 +88,28 @@ class AutoEncoder(nn.Module):
                                    nn.Conv2d(512, 512, (3, 3), stride=1, padding=1),
                                    nn.LeakyReLU(0.2))
 
-        self.up6 = nn.ConvTranspose2d(512,256,(2,2),stride=2)
+        self.up6 = nn.ConvTranspose2d(512,256,2,stride=2)
 
         self.conv6 = nn.Sequential(nn.Conv2d(512,256,(3,3), stride=1, padding=1),
                                    nn.LeakyReLU(0.2),
-                                   nn.Conv2d(256,256,(3,3)),
+                                   nn.Conv2d(256,256,(3,3), stride=1, padding=1),
                                    nn.LeakyReLU(0.2))
 
-        self.up7 = nn.ConvTranspose2d(256,128,(2,2),stride=2)
+        self.up7 = nn.ConvTranspose2d(256,128,2,stride=2)
 
         self.conv7 = nn.Sequential(nn.Conv2d(256,128,(3,3), stride=1, padding=1),
                                    nn.LeakyReLU(0.2),
-                                   nn.Conv2d(128,128,(3,3)),
+                                   nn.Conv2d(128,128,(3,3), stride=1, padding=1),
                                    nn.LeakyReLU(0.2))
 
-        self.up8 = nn.ConvTranspose2d(128,64,(2,2),stride=2)
+        self.up8 = nn.ConvTranspose2d(128,64,2,stride=2)
 
         self.conv8 = nn.Sequential(nn.Conv2d(128,64,(3,3), stride=1, padding=1),
                                    nn.LeakyReLU(0.2),
                                    nn.Conv2d(64,64,(3,3), stride=1, padding=1),
                                    nn.LeakyReLU(0.2))
 
-        self.up9 = nn.ConvTranspose2d(64,32,(2,2),stride=2)
+        self.up9 = nn.ConvTranspose2d(64,32,2,stride=2)
 
         self.conv9 = nn.Sequential(nn.Conv2d(64,32,(3,3), stride=1, padding=1),
                                    nn.LeakyReLU(0.2),
@@ -140,7 +140,8 @@ class AutoEncoder(nn.Module):
         conv8 = self.conv8(up8)
         up9 = self.up9(conv8)
         up9 = torch.cat([up9, conv1], 1)
-        conv10 = self.conv10(up9)
+        conv9 = self.conv9(up9)
+        conv10 = self.conv10(conv9)
         return nn.functional.pixel_shuffle(conv10, 2)
 
 
@@ -181,7 +182,7 @@ def createAndTrainModel(**kwargs):
 
     aeDataloader = DataLoader(aeDataset, batch_size=batch_size,pin_memory=True)
 
-    model=AutoEncoder()
+    model=UNet()
     model.to(device)
 
     if "criterion" in kwargs:
@@ -233,11 +234,3 @@ def createAndTrainModel(**kwargs):
 
     return model,loss # Return the trained model, and the latest training loss it yielded
 
-def testModel():
-    model = AutoEncoder().to(device)
-    testTensor = torch.randn(1,4,400,600).to(device) # Change la forme du tensor en modifiant les deux derniers paramètres (hauteur et largeur)
-    return model(testTensor) # Le but: que cette ligne ne renvoie pas une erreur
-
-if __name__=="__main__":
-    resultTensor = testModel()
-    print(resultTensor.shape) # Les deux dernières dimensions de ce tensor devraient être exactement le double de celles de testTensor
