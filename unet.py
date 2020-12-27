@@ -1,17 +1,17 @@
-
+import imghdr
 import os
 from random import shuffle
 
-import torch.nn as nn
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 import torchvision
 from PIL import Image
-from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
-
-import imghdr
+from torch.utils.data import Dataset
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 def listImagesInDir(directory, ignoreDirs=[]):
     res = []
@@ -19,9 +19,11 @@ def listImagesInDir(directory, ignoreDirs=[]):
     for root, dirs, files in os.walk(directory, topdown=True):
         dirs[:] = [d for d in set(dirs) - set(ignoreDirs)]
         for fileName in files:
-            if imghdr.what(os.path.join(root, fileName)) in ['rgb', 'gif', 'pbm', 'pgm', 'ppm', 'tiff', 'xbm', 'jpeg', 'bmp', 'png', 'webp']:
+            if imghdr.what(os.path.join(root, fileName)) in ['rgb', 'gif', 'pbm', 'pgm', 'ppm', 'tiff', 'xbm', 'jpeg',
+                                                             'bmp', 'png', 'webp']:
                 res.append(os.path.join(root, fileName))
     return res
+
 
 class AutoEncoderLocalFileDataset(Dataset):
     def __init__(self, **kwargs):
@@ -32,7 +34,8 @@ class AutoEncoderLocalFileDataset(Dataset):
                 self.imagePaths = listImagesInDir(kwargs["dirPath"])
 
         if "csvFilesList" in kwargs and os.path.isfile(kwargs["csvFilesList"]):
-            self.imagePaths = [line.strip() for line in open(kwargs["csvFilesList"], "r")]  # Just load every line from the list of files
+            self.imagePaths = [line.strip() for line in
+                               open(kwargs["csvFilesList"], "r")]  # Just load every line from the list of files
 
         if "fileNames" in kwargs:
             self.imagePaths = kwargs["fileNames"]
@@ -56,68 +59,71 @@ class UNet(nn.Module):
 
     def __init__(self, **kwargs):
         super().__init__()
-        self.conv1 = nn.Sequential(nn.Conv2d(4,32,(3,3), stride=1, padding=1),
+        if "kernel_size" in kwargs:
+            kernel_size = kwargs["kernel_size"]
+        else:
+            kernel_size = 3
+        self.conv1 = nn.Sequential(nn.Conv2d(4, 32, (kernel_size, kernel_size), stride=1, padding=1),
                                    nn.LeakyReLU(0.2),
-                                   nn.Conv2d(32,32,(3,3), stride=1, padding=1),
+                                   nn.Conv2d(32, 32, (kernel_size, kernel_size), stride=1, padding=1),
                                    nn.LeakyReLU(0.2))
-        self.pool1 = nn.MaxPool2d((2,2))
+        self.pool1 = nn.MaxPool2d((2, 2))
 
-        self.conv2 = nn.Sequential(nn.Conv2d(32,64,(3,3), stride=1, padding=1),
+        self.conv2 = nn.Sequential(nn.Conv2d(32, 64, (kernel_size, kernel_size), stride=1, padding=1),
                                    nn.LeakyReLU(0.2),
-                                   nn.Conv2d(64,64,(3,3), stride=1, padding=1),
-                                   nn.LeakyReLU(0.2))
-
-        self.pool2 = nn.MaxPool2d((2,2))
-
-        self.conv3 = nn.Sequential(nn.Conv2d(64, 128, (3, 3), stride=1, padding=1),
-                                   nn.LeakyReLU(0.2),
-                                   nn.Conv2d(128, 128, (3, 3), stride=1, padding=1),
+                                   nn.Conv2d(64, 64, (kernel_size, kernel_size), stride=1, padding=1),
                                    nn.LeakyReLU(0.2))
 
-        self.pool3 = nn.MaxPool2d((2,2))
+        self.pool2 = nn.MaxPool2d((2, 2))
 
-        self.conv4 = nn.Sequential(nn.Conv2d(128, 256, (3, 3), stride=1, padding=1),
+        self.conv3 = nn.Sequential(nn.Conv2d(64, 128, (kernel_size, kernel_size), stride=1, padding=1),
                                    nn.LeakyReLU(0.2),
-                                   nn.Conv2d(256, 256, (3, 3), stride=1, padding=1),
+                                   nn.Conv2d(128, 128, (kernel_size, kernel_size), stride=1, padding=1),
                                    nn.LeakyReLU(0.2))
 
-        self.pool4 = nn.MaxPool2d((2,2))
+        self.pool3 = nn.MaxPool2d((2, 2))
 
-        self.conv5 = nn.Sequential(nn.Conv2d(256, 512, (3, 3), stride=1, padding=1),
+        self.conv4 = nn.Sequential(nn.Conv2d(128, 256, (kernel_size, kernel_size), stride=1, padding=1),
                                    nn.LeakyReLU(0.2),
-                                   nn.Conv2d(512, 512, (3, 3), stride=1, padding=1),
+                                   nn.Conv2d(256, 256, (kernel_size, kernel_size), stride=1, padding=1),
                                    nn.LeakyReLU(0.2))
 
-        self.up6 = nn.ConvTranspose2d(512,256,2,stride=2)
+        self.pool4 = nn.MaxPool2d((2, 2))
 
-        self.conv6 = nn.Sequential(nn.Conv2d(512,256,(3,3), stride=1, padding=1),
+        self.conv5 = nn.Sequential(nn.Conv2d(256, 512, (kernel_size, kernel_size), stride=1, padding=1),
                                    nn.LeakyReLU(0.2),
-                                   nn.Conv2d(256,256,(3,3), stride=1, padding=1),
+                                   nn.Conv2d(512, 512, (kernel_size, kernel_size), stride=1, padding=1),
                                    nn.LeakyReLU(0.2))
 
-        self.up7 = nn.ConvTranspose2d(256,128,2,stride=2)
+        self.up6 = nn.ConvTranspose2d(512, 256, 2, stride=2)
 
-        self.conv7 = nn.Sequential(nn.Conv2d(256,128,(3,3), stride=1, padding=1),
+        self.conv6 = nn.Sequential(nn.Conv2d(512, 256, (kernel_size, kernel_size), stride=1, padding=1),
                                    nn.LeakyReLU(0.2),
-                                   nn.Conv2d(128,128,(3,3), stride=1, padding=1),
+                                   nn.Conv2d(256, 256, (kernel_size, kernel_size), stride=1, padding=1),
                                    nn.LeakyReLU(0.2))
 
-        self.up8 = nn.ConvTranspose2d(128,64,2,stride=2)
+        self.up7 = nn.ConvTranspose2d(256, 128, 2, stride=2)
 
-        self.conv8 = nn.Sequential(nn.Conv2d(128,64,(3,3), stride=1, padding=1),
+        self.conv7 = nn.Sequential(nn.Conv2d(256, 128, (kernel_size, kernel_size), stride=1, padding=1),
                                    nn.LeakyReLU(0.2),
-                                   nn.Conv2d(64,64,(3,3), stride=1, padding=1),
+                                   nn.Conv2d(128, 128, (kernel_size, kernel_size), stride=1, padding=1),
                                    nn.LeakyReLU(0.2))
 
-        self.up9 = nn.ConvTranspose2d(64,32,2,stride=2)
+        self.up8 = nn.ConvTranspose2d(128, 64, 2, stride=2)
 
-        self.conv9 = nn.Sequential(nn.Conv2d(64,32,(3,3), stride=1, padding=1),
+        self.conv8 = nn.Sequential(nn.Conv2d(128, 64, (kernel_size, kernel_size), stride=1, padding=1),
                                    nn.LeakyReLU(0.2),
-                                   nn.Conv2d(32,32,(3,3), stride=1, padding=1),
+                                   nn.Conv2d(64, 64, (kernel_size, kernel_size), stride=1, padding=1),
                                    nn.LeakyReLU(0.2))
 
-        self.conv10 = nn.Conv2d(32,12,(1,1),stride=1)
+        self.up9 = nn.ConvTranspose2d(64, 32, 2, stride=2)
 
+        self.conv9 = nn.Sequential(nn.Conv2d(64, 32, (kernel_size, kernel_size), stride=1, padding=1),
+                                   nn.LeakyReLU(0.2),
+                                   nn.Conv2d(32, 32, (kernel_size, kernel_size), stride=1, padding=1),
+                                   nn.LeakyReLU(0.2))
+
+        self.conv10 = nn.Conv2d(32, 12, (1, 1), stride=1)
 
     def forward(self, x):
         conv1 = self.conv1(x)
@@ -142,7 +148,7 @@ class UNet(nn.Module):
         up9 = torch.cat([up9, conv1], 1)
         conv9 = self.conv9(up9)
         conv10 = self.conv10(conv9)
-        return nn.functional.pixel_shuffle(conv10, 2)
+        return F.pixel_shuffle(conv10, 2)
 
 
 def createAndTrainModel(**kwargs):
@@ -162,69 +168,70 @@ def createAndTrainModel(**kwargs):
     else:
         raise ValueError("No dataset provided (use dataset keyword argument)")
 
-    if not isinstance(aeDataset,Dataset):
+    if not isinstance(aeDataset, Dataset):
         raise ValueError("Dataset provided is not a valid torch dataset")
 
     if "batch_size" in kwargs:
-        batch_size=kwargs["batch_size"]
+        batch_size = kwargs["batch_size"]
     else:
-        batch_size=4
+        batch_size = 4
 
     if "learning_rate" in kwargs:
-        learning_rate=kwargs["learning_rate"]
+        learning_rate = kwargs["learning_rate"]
     else:
-        learning_rate=1e-3
+        learning_rate = 1e-3
 
     if "num_epochs" in kwargs:
-        num_epochs=kwargs["num_epochs"]
+        num_epochs = kwargs["num_epochs"]
     else:
-        num_epochs=50
+        num_epochs = 50
 
-    aeDataloader = DataLoader(aeDataset, batch_size=batch_size,pin_memory=True)
+    aeDataloader = DataLoader(aeDataset, batch_size=batch_size, pin_memory=True)
 
-    model=UNet()
+    model = UNet()
     model.to(device)
 
     if "criterion" in kwargs:
-        criterion=kwargs["criterion"]
+        criterion = kwargs["criterion"]
     else:
-        criterion=nn.MSELoss()
+        criterion = nn.MSELoss()
 
-    optimizer=torch.optim.Adam(model.parameters(),lr=learning_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-    lossLog=[]
+    lossLog = []
 
     for epoch in range(num_epochs):
-        loss=0
+        loss = 0
         for batch in aeDataloader:
-            batch=batch.to(device)
+            batch = batch.to(device)
             optimizer.zero_grad()
 
             output = model(batch)
 
-            train_loss=criterion(output,batch)# The goal is to denoise, so making this look like a noisy image is maybe not the best. To be continued...
+            train_loss = criterion(output,
+                                   batch)  # The goal is to denoise, so making this look like a noisy image is maybe not the best. To be continued...
 
             train_loss.backward()
             optimizer.step()
 
-            loss+=train_loss.item()
+            loss += train_loss.item()
 
-        loss=loss/(len(aeDataloader))
+        loss = loss / (len(aeDataloader))
 
-        lossLog.append((epoch,loss))
+        lossLog.append((epoch, loss))
 
-        print(f"epoch [{epoch+1}/{num_epochs}], loss:{loss:.4f}")
+        print(f"epoch [{epoch + 1}/{num_epochs}], loss:{loss:.4f}")
         # if epoch%10==0 and "directory" in kwargs:
         #     pic=torchvision.transforms.ToPILImage()(output[0].cpu())
         #     pic.save(f"{kwargs['directory']}/SomeImprobableName__Epoch{epoch+1}.jpg")
 
     if "logFileName" in kwargs:
-        f=open(kwargs["logFileName"],"w")
+        f = open(kwargs["logFileName"], "w")
         f.write(f"Epoch,"
                 f"Loss,"
                 f"Criterion,"
                 f"LearningRate\n")
-        for epochX,lossY in lossLog:
+        for epochX, lossY in lossLog:
             f.write(f"{epochX}"
                     f",{lossY},"
                     f"{criterion.__class__.__name__},"
@@ -232,5 +239,4 @@ def createAndTrainModel(**kwargs):
                     f"\n")
         f.close()
 
-    return model,loss # Return the trained model, and the latest training loss it yielded
-
+    return model, loss  # Return the trained model, and the latest training loss it yielded
