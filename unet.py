@@ -163,10 +163,8 @@ def createAndTrainModel(**kwargs):
     :return: a fully trained model AND the latest loss computed
     """
 
-    if "dataset" in kwargs:
-        aeDataset = kwargs["dataset"]
-    else:
-        raise ValueError("No dataset provided (use dataset keyword argument)")
+    assert "dataset" in kwargs, "No dataset provided (use dataset keyword argument)"
+    aeDataset = kwargs["dataset"]
 
     if not isinstance(aeDataset, Dataset):
         raise ValueError("Dataset provided is not a valid torch dataset")
@@ -179,7 +177,7 @@ def createAndTrainModel(**kwargs):
     if "learning_rate" in kwargs:
         learning_rate = kwargs["learning_rate"]
     else:
-        learning_rate = 1e-3
+        learning_rate = 1e-4
 
     if "num_epochs" in kwargs:
         num_epochs = kwargs["num_epochs"]
@@ -194,7 +192,7 @@ def createAndTrainModel(**kwargs):
     if "criterion" in kwargs:
         criterion = kwargs["criterion"]
     else:
-        criterion = nn.MSELoss()
+        criterion = nn.L1Loss()
 
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -202,14 +200,15 @@ def createAndTrainModel(**kwargs):
 
     for epoch in range(num_epochs):
         loss = 0
-        for batch in aeDataloader:
-            batch = batch.to(device)
+        for in_images, gt_images in aeDataloader:
+            in_images = in_images.to(device)
+            gt_images = gt_images.to(device)
             optimizer.zero_grad()
 
-            output = model(batch)
+            output = model(in_images)
 
             train_loss = criterion(output,
-                                   batch)  # The goal is to denoise, so making this look like a noisy image is maybe not the best. To be continued...
+                                   gt_images)  # The goal is to denoise, so making this look like a noisy image is maybe not the best. To be continued...
 
             train_loss.backward()
             optimizer.step()
