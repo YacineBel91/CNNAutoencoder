@@ -158,7 +158,7 @@ def createAndTrainModel(**kwargs):
     :param batch_size: The size of the batches (defaults to 4)
     :param learning_rate: The learning rate (defaults to 1e-3)
     :param num_epochs: The number of epochs (defaults to 50)
-    :param criterion: The Loss function (defaults to MSELoss)
+    :param criterion: The Loss function (defaults to L1Loss)
     :param logFileName: (very optional) Path to a file where to store the history of the training
     :param optimizer: (optional) Callable that returns an actual optimizer (i.e. a proper optimizer factory)
     :return: a fully trained model AND the latest loss computed
