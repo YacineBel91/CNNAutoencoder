@@ -243,4 +243,4 @@ def createAndTrainModel(**kwargs):
                     f"\n")
         f.close()
 
-    return model, loss  # Return the trained model, and the latest training loss it yielded
+    return model  # Return the trained model, and the latest training loss it yielded
