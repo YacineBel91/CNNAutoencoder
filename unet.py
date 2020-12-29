@@ -160,6 +160,7 @@ def createAndTrainModel(**kwargs):
     :param num_epochs: The number of epochs (defaults to 50)
     :param criterion: The Loss function (defaults to MSELoss)
     :param logFileName: (very optional) Path to a file where to store the history of the training
+    :param optimizer: (optional) Callable that returns an actual optimizer (i.e. a proper optimizer factory)
     :return: a fully trained model AND the latest loss computed
     """
 
@@ -194,7 +195,11 @@ def createAndTrainModel(**kwargs):
     else:
         criterion = nn.L1Loss()
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    if "optimizer" in kwargs:
+        optimizer = kwargs["optimizer"](
+            model.parameters())  # In case an optimizer factory is specified, let's give it this model's parameters
+    else:
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     lossLog = []
 
