@@ -56,7 +56,7 @@ if __name__ == "__main__":
 
     if args.optimizer_params:
         optInfo = json.load(open(args.optimizer_params))
-        optimizerFactory = optimizers[optInfo["name"]](optInfo["params"])
+        optimizerFactory = optimizers[optInfo["name"]](**optInfo["params"])
         createAndTrainModelArgs["optimizer"] = optimizerFactory
 
     if args.run_name:
