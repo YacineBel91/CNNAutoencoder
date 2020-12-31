@@ -12,6 +12,8 @@ from unet_dataset import LocalFilesUnetDataset
 # ------------How to save a torch model depending on the actual goal
 #            https://stackoverflow.com/questions/42703500/best-way-to-save-a-trained-model-in-pytorch
 
+timeString = lambda: datetime.now(pytz.timezone("CET")).strftime("%b-%d-%Hh%M")
+
 crits = {
     "L1Loss": torch.nn.L1Loss(),
     "MSELoss": torch.nn.MSELoss(),
@@ -65,5 +67,4 @@ if __name__ == "__main__":
         createAndTrainModelArgs["run_name"] = args.run_name
 
     model = createAndTrainModel(**createAndTrainModelArgs)
-    timeString = datetime.now(pytz.timezone("CET")).strftime("%b-%d-%Hh%M")
     model.cpu()  # Before ever saving model to file, make sure it has host memory mapping (won't depend on harware)
