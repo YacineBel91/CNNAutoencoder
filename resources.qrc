@@ -1,4 +1,4 @@
 <RCC>
-  <qresource prefix="icons"/>
-  <qresource prefix="translations"/>
+    <qresource prefix="icons"/>
+    <qresource prefix="translations"/>
 </RCC>
