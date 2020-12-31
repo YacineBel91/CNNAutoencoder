@@ -55,7 +55,7 @@ if __name__ == "__main__":
         createAndTrainModelArgs["log_file_name"] = args.log_file_name
 
     if args.optimizer_params:
-        optInfo = json.load(args.optimizer_params)
+        optInfo = json.load(open(args.optimizer_params))
         optimizerFactory = optimizers[optInfo["name"]](optInfo["params"])
         createAndTrainModelArgs["optimizer"] = optimizerFactory
 
