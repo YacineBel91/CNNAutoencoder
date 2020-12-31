@@ -23,6 +23,7 @@ parser = argparse.ArgumentParser()
 # Dataset related
 parser.add_argument("files_list",
                     help="Creates and train a noise reducing UNet Convolutionnal Neural Network, provided a list of reference images in any text file")
+parser.add_argument("--patch_size", help="How big the sample patch",type=int, default=256)
 
 # Training related
 parser.add_argument("--batch_size", help="Number of examples per batch", type=int, default=4)
@@ -57,6 +58,7 @@ if __name__ == "__main__":
     if args.optimizer_params:
         optInfo = json.load(open(args.optimizer_params))
         optimizerFactory = optimizers[optInfo["name"]](**optInfo["params"])
+        print(f"Created optimizer with parameters {optInfo['params']}")
         createAndTrainModelArgs["optimizer"] = optimizerFactory
 
     if args.run_name:
