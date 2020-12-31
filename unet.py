@@ -12,6 +12,9 @@ from torch.utils.data import Dataset
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+from datetime import datetime
+import pytz  # So that this program's timezone is always french !
+
 
 def listImagesInDir(directory, ignoreDirs=[]):
     res = []
@@ -159,8 +162,10 @@ def createAndTrainModel(**kwargs):
     :param learning_rate: The learning rate (defaults to 1e-3)
     :param num_epochs: The number of epochs (defaults to 50)
     :param criterion: The Loss function (defaults to L1Loss)
-    :param logFileName: (very optional) Path to a file where to store the history of the training
+    :param log_file_name: (very optional) Path to a file where to store the history of the training
     :param optimizer: (optional) Callable that returns an actual optimizer (i.e. a proper optimizer factory)
+    :param save_frequency: Save model's state every save_frequency epoch
+    :param run_name: (optional) The name of the run, so that you can find it in the mess of directories this program will create
     :return: a fully trained model AND the latest loss computed
     """
 
@@ -175,6 +180,11 @@ def createAndTrainModel(**kwargs):
     else:
         batch_size = 4
 
+    if "run_name" in kwargs:
+        run_name = kwargs["run_name"]
+    else:
+        run_name = datetime.now(pytz.timezone("CET")).strftime("Run-%b-%d-%Hh%M")
+
     if "learning_rate" in kwargs:
         learning_rate = kwargs["learning_rate"]
     else:
@@ -184,6 +194,14 @@ def createAndTrainModel(**kwargs):
         num_epochs = kwargs["num_epochs"]
     else:
         num_epochs = 50
+
+    if "save_frequency" in kwargs:
+        save_frequency = kwargs["save_frequency"]
+    else:
+        save_frequency = 10
+
+    if save_frequency <= 0:
+        save_frequency = num_epochs  # If invalid save frequency (0 or less), we only save once at the end
 
     aeDataloader = DataLoader(aeDataset, batch_size=batch_size, pin_memory=True)
 
@@ -225,12 +243,20 @@ def createAndTrainModel(**kwargs):
         lossLog.append((epoch, loss))
 
         print(f"epoch [{epoch + 1}/{num_epochs}], loss:{loss:.4f}")
-        # if epoch%10==0 and "directory" in kwargs:
-        #     pic=torchvision.transforms.ToPILImage()(output[0].cpu())
-        #     pic.save(f"{kwargs['directory']}/SomeImprobableName__Epoch{epoch+1}.jpg")
 
-    if "logFileName" in kwargs:
-        f = open(kwargs["logFileName"], "w")
+        # We save the progress every save_frequency epoch, but don't want to save first as it is useless
+        if (epoch + 1) % save_frequency == 0 and epoch > 0:
+            # Get French time stamp even if Colab's GPUs are far away
+            timeString = datetime.now(pytz.timezone("CET")).strftime("%b-%d-%Hh%M")
+            check_point_dict = {
+                "model_state_dict": model.state_dict(),
+                "epoch": epoch,
+                "optimizer_state_dict": optimizer.state_dict()
+            }
+            torch.save(check_point_dict, f"results/{run_name}_check_point_{timeString}_EPOCH_{epoch + 1}")
+
+    if "log_file_name" in kwargs:
+        f = open(kwargs["log_file_name"], "w")
         f.write(f"Epoch,"
                 f"Loss,"
                 f"Criterion,"
