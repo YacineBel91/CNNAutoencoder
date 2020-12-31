@@ -13,9 +13,9 @@ from unet_dataset import LocalFilesUnetDataset
 #            https://stackoverflow.com/questions/42703500/best-way-to-save-a-trained-model-in-pytorch
 
 crits = {
-    "L1Loss": torch.nn.L1Loss,
-    "MSELoss": torch.nn.MSELoss,
-    "BCELoss": torch.nn.BCELoss
+    "L1Loss": torch.nn.L1Loss(),
+    "MSELoss": torch.nn.MSELoss(),
+    "BCELoss": torch.nn.BCELoss()
 }
 
 parser = argparse.ArgumentParser()
